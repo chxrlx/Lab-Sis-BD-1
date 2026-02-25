@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Querys de Base de Datos - Abarrotes</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+
+    <style>
+        :root {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #334155;
+            --text-heading: #0f172a;
+            --border-color: #e2e8f0;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success-color: #16a34a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--text-heading);
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            color: var(--text-heading);
+            font-size: 1.4rem;
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .code-container {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            background-color: #2d2d2d;
+        }
+
+        pre[class*="language-"] {
+            margin: 0 !important;
+            padding: 24px 20px 20px !important;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            box-shadow: none;
+            border: none;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        .copy-btn.copied {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Documentación de Base de Datos</h1>
+            <p>Esquema y consultas en SQLite para la gestión de una Tienda de Abarrotes.</p>
+        </header>
+
+        <div class="card">
+            <h2>1. Configuración Inicial</h2>
+            <p>Es indispensable ejecutar este comando cada vez que se inicie una conexión a la base de datos.</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this)">Copiar código</button>
+<pre><code class="language-sql">PRAGMA foreign_keys = ON;</code></pre>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>2. Creación de Tablas</h2>
+            <p>Diseño del esquema relacional.</p>
+            <div class="code-container">
+                <button class="copy-btn" onclick="copyCode(this)">Copiar código</button>
+<pre><code class="language-sql">-- 1. Tablas Maestras (Catálogos)
+CREATE TABLE categorias (
+    id_categoria INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    descripcion TEXT
+);
+
+CREATE TABLE proveedores (
+    id_proveedor INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre_empresa TEXT NOT NULL,
+    contacto TEXT,
+    telefono TEXT,
+    direccion TEXT
+);
+
+CREATE TABLE empleados (
+    id_empleado INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    apellido TEXT NOT NULL,
+    puesto TEXT,
+    fecha_contratacion DATE DEFAULT CURRENT_DATE
+);
+
+CREATE TABLE clientes (
+    id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT,
+    apellido TEXT,
+    telefono TEXT
+);
+
+-- 2. Tabla de Inventario (Productos)
+CREATE TABLE productos (
+    id_producto INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    id_categoria INTEGER,
+    precio_venta REAL NOT NULL,
+    stock INTEGER DEFAULT 0,
+    id_proveedor INTEGER,
+    FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria),
+    FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor)
+);
+
+-- 3. Transacciones (Ventas y Compras)
+CREATE TABLE ventas (
+    id_venta INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha_venta DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id_empleado INTEGER,
+    id_cliente INTEGER,
+    total REAL DEFAULT 0,
+    FOREIGN KEY (id_empleado) REFERENCES empleados(id_empleado),
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente)
+);
+
+CREATE TABLE detalle_ventas (
+    id_detalle_venta INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_venta INTEGER,
+    id_producto INTEGER,
+    cantidad INTEGER NOT NULL,
+    precio_unitario REAL NOT NULL,
+    FOREIGN KEY (id_venta) REFERENCES ventas(id_venta) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+);
+
+CREATE TABLE compras (
+    id_compra INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_proveedor INTEGER,
+    fecha_compra DATETIME DEFAULT CURRENT_TIMESTAMP,
+    total_compra REAL,
+    FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor)
+);
+
+CREATE TABLE detalle_compras (
+    id_detalle_compra INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_compra INTEGER,
+    id_producto INTEGER,
+    cantidad INTEGER NOT NULL,
+    precio_costo REAL NOT NULL,
+    FOREIGN KEY (id_compra) REFERENCES compras(id_compra) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto)
+);</code></pre>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+
+    <script>
+        function copyCode(button) {
+            const codeBlock = button.parentElement.querySelector('code');
+            const textToCopy = codeBlock.textContent;
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalText = button.innerText;
+                button.innerText = '¡Copiado!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.innerText = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Error al copiar el texto: ', err);
+                button.innerText = 'Error al copiar';
+            });
+        }
+    </script>
+</body>
+</html>

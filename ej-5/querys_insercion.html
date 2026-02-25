@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Querys de Base de Datos - Sistema de Biblioteca</title>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet" />
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            line-height: 1.6;
+            max-width: 950px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            border-bottom: 3px solid var(--accent-color);
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.2em;
+            margin: 0 0 10px 0;
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            font-size: 1.5em;
+            margin-top: 40px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+
+        p.subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin: 0;
+        }
+
+        .description {
+            background-color: #fff;
+            padding: 15px 20px;
+            border-left: 4px solid var(--accent-color);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        pre[class*="language-"] {
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 1.5em 0;
+            padding: 1.5em;
+            font-size: 0.95em;
+        }
+
+        div.code-toolbar > .toolbar a,
+        div.code-toolbar > .toolbar button,
+        div.code-toolbar > .toolbar span {
+            background-color: #4a5568 !important;
+            color: #fff !important;
+            border-radius: 6px !important;
+            padding: 6px 12px !important;
+            font-size: 0.85em !important;
+            transition: background-color 0.2s ease !important;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        div.code-toolbar > .toolbar a:hover,
+        div.code-toolbar > .toolbar button:hover,
+        div.code-toolbar > .toolbar span:hover {
+            background-color: var(--accent-color) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Documentación del Esquema de Base de Datos</h1>
+        <p class="subtitle">Sistema de Gestión de Biblioteca (SQLite)</p>
+    </header>
+
+    <main>
+        <div class="description">
+            <p>Este documento contiene las consultas SQL avanzadas para la creación y gestión de la base de datos de la biblioteca. Incluye la estructura de tablas normalizada, índices para optimización de consultas, triggers para automatizar la lógica de negocio y datos de prueba.</p>
+        </div>
+
+        <h2>1. Creación de Tablas (Estructura Avanzada)</h2>
+        <p>Se habilita el uso de llaves foráneas y se definen las tablas con atributos extendidos (ISBN, ubicaciones, estados y fechas límite).</p>
+        <pre><code class="language-sql">
+PRAGMA foreign_keys = ON;
+
+-- Tabla: autor
+CREATE TABLE autor (
+    id_autor INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    apellidos TEXT NOT NULL,
+    nacionalidad TEXT
+);
+
+-- Tabla: editorial
+CREATE TABLE editorial (
+    id_editorial INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    pais TEXT
+);
+
+-- Tabla: categoria
+CREATE TABLE categoria (
+    id_categoria INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE
+);
+
+-- Tabla: libro
+CREATE TABLE libro (
+    id_libro INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    id_autor INTEGER,
+    id_editorial INTEGER,
+    id_categoria INTEGER,
+    sinopsis TEXT,
+    FOREIGN KEY (id_autor) REFERENCES autor(id_autor) ON DELETE SET NULL,
+    FOREIGN KEY (id_editorial) REFERENCES editorial(id_editorial) ON DELETE SET NULL,
+    FOREIGN KEY (id_categoria) REFERENCES categoria(id_categoria) ON DELETE SET NULL
+);
+
+-- Tabla: lanzamiento_publicacion
+CREATE TABLE lanzamiento_publicacion (
+    id_lanzamiento INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_libro INTEGER NOT NULL,
+    isbn TEXT UNIQUE,
+    idioma TEXT DEFAULT 'Español',
+    fecha_lanzamiento DATE,
+    numero_edicion INTEGER,
+    FOREIGN KEY (id_libro) REFERENCES libro(id_libro) ON DELETE CASCADE
+);
+
+-- Tabla: publicacion
+CREATE TABLE publicacion (
+    id_publicacion INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_lanzamiento INTEGER NOT NULL,
+    codigo_inventario TEXT UNIQUE NOT NULL,
+    ubicacion_estante TEXT,
+    estado TEXT DEFAULT 'Disponible',
+    FOREIGN KEY (id_lanzamiento) REFERENCES lanzamiento_publicacion(id_lanzamiento) ON DELETE CASCADE
+);
+
+-- Tabla: usuario
+CREATE TABLE usuario (
+    id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    apellidos TEXT NOT NULL,
+    correo TEXT UNIQUE NOT NULL,
+    telefono TEXT,
+    estado TEXT DEFAULT 'Activo'
+);
+
+-- Tabla: prestamo
+CREATE TABLE prestamo (
+    id_prestamo INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_usuario INTEGER NOT NULL,
+    id_publicacion INTEGER NOT NULL,
+    fecha_prestamo DATE DEFAULT CURRENT_DATE,
+    fecha_limite DATE NOT NULL,
+    fecha_devolucion DATE,
+    estado TEXT DEFAULT 'En curso',
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+    FOREIGN KEY (id_publicacion) REFERENCES publicacion(id_publicacion) ON DELETE CASCADE
+);
+        </code></pre>
+
+        <h2>2. Creación de Índices</h2>
+        <p>Índices diseñados para evitar escaneos secuenciales y optimizar tanto las búsquedas de texto como las uniones (JOINs) en llaves foráneas.</p>
+        <pre><code class="language-sql">
+-- Índices para búsquedas rápidas de texto
+CREATE INDEX idx_libro_titulo ON libro(titulo);
+CREATE INDEX idx_lanzamiento_isbn ON lanzamiento_publicacion(isbn);
+CREATE INDEX idx_usuario_correo ON usuario(correo);
+
+-- Índices para optimizar los JOINs de las llaves foráneas
+CREATE INDEX idx_fk_libro_autor ON libro(id_autor);
+CREATE INDEX idx_fk_publicacion_lanzamiento ON publicacion(id_lanzamiento);
+CREATE INDEX idx_fk_prestamo_usuario ON prestamo(id_usuario);
+CREATE INDEX idx_fk_prestamo_publicacion ON prestamo(id_publicacion);
+        </code></pre>
+
+        <h2>3. Triggers (Automatización de Inventario)</h2>
+        <p>Disparadores que mantienen la consistencia de los datos entre las tablas de publicaciones físicas y el registro de préstamos.</p>
+        <pre><code class="language-sql">
+-- Trigger 1: Evitar que se preste un libro que ya está prestado o en mantenimiento
+CREATE TRIGGER trg_validar_disponibilidad
+BEFORE INSERT ON prestamo
+FOR EACH ROW
+BEGIN
+    SELECT RAISE(ABORT, 'Error: Esta publicación no está disponible para préstamo.')
+    WHERE (SELECT estado FROM publicacion WHERE id_publicacion = NEW.id_publicacion) != 'Disponible';
+END;
+
+-- Trigger 2: Cambiar el estado del libro a 'Prestado' al registrar la salida
+CREATE TRIGGER trg_marcar_como_prestado
+AFTER INSERT ON prestamo
+FOR EACH ROW
+BEGIN
+    UPDATE publicacion 
+    SET estado = 'Prestado' 
+    WHERE id_publicacion = NEW.id_publicacion;
+END;
+
+-- Trigger 3: Regresar el estado a 'Disponible' al devolverlo
+CREATE TRIGGER trg_marcar_como_devuelto
+AFTER UPDATE OF fecha_devolucion ON prestamo
+FOR EACH ROW
+WHEN NEW.fecha_devolucion IS NOT NULL AND OLD.fecha_devolucion IS NULL
+BEGIN
+    UPDATE publicacion 
+    SET estado = 'Disponible' 
+    WHERE id_publicacion = NEW.id_publicacion;
+    
+    UPDATE prestamo
+    SET estado = 'Devuelto'
+    WHERE id_prestamo = NEW.id_prestamo;
+END;
+        </code></pre>
+
+        <h2>4. Inserción de Datos (Datos de Prueba)</h2>
+        <p>Scripts de inserción para poblar la base de datos con información inicial y poder realizar pruebas sobre las relaciones y los triggers.</p>
+        <pre><code class="language-sql">
+-- Inserción de Categorías
+INSERT INTO categoria (nombre) VALUES ('Ingeniería de Software');
+INSERT INTO categoria (nombre) VALUES ('Ciencia Ficción');
+INSERT INTO categoria (nombre) VALUES ('Misterio y Fenómenos');
+
+-- Inserción de Autores
+INSERT INTO autor (nombre, apellidos, nacionalidad) VALUES ('Linus', 'Torvalds', 'Finlandesa');
+INSERT INTO autor (nombre, apellidos, nacionalidad) VALUES ('Arthur C.', 'Clarke', 'Británica');
+INSERT INTO autor (nombre, apellidos, nacionalidad) VALUES ('John', 'Keel', 'Estadounidense');
+
+-- Inserción de Editoriales
+INSERT INTO editorial (nombre, pais) VALUES ('O Reilly Media', 'Estados Unidos');
+INSERT INTO editorial (nombre, pais) VALUES ('Ediciones Minotauro', 'España');
+
+-- Inserción de Libros (Obras abstractas)
+INSERT INTO libro (titulo, id_autor, id_editorial, id_categoria, sinopsis) 
+VALUES ('Just for Fun: The Story of an Accidental Revolutionary', 1, 1, 1, 'La historia de cómo se creó el kernel de Linux.');
+
+INSERT INTO libro (titulo, id_autor, id_editorial, id_categoria, sinopsis) 
+VALUES ('2001: Una Odisea Espacial', 2, 2, 2, 'Clásico de la ciencia ficción sobre la evolución humana y la inteligencia artificial.');
+
+INSERT INTO libro (titulo, id_autor, id_editorial, id_categoria, sinopsis) 
+VALUES ('Las Profecías del Mothman', 3, 2, 3, 'Investigación sobre avistamientos de criaturas inexplicables en Point Pleasant.');
+
+-- Inserción de Lanzamientos (Ediciones específicas con ISBN)
+INSERT INTO lanzamiento_publicacion (id_libro, isbn, idioma, fecha_lanzamiento, numero_edicion) 
+VALUES (1, '978-0066620732', 'Inglés', '2001-05-01', 1);
+
+INSERT INTO lanzamiento_publicacion (id_libro, isbn, idioma, fecha_lanzamiento, numero_edicion) 
+VALUES (2, '978-8445077255', 'Español', '1968-01-01', 5);
+
+INSERT INTO lanzamiento_publicacion (id_libro, isbn, idioma, fecha_lanzamiento, numero_edicion) 
+VALUES (3, '978-0765341976', 'Inglés', '1975-01-01', 2);
+
+-- Inserción de Publicaciones (Copias físicas en inventario)
+INSERT INTO publicacion (id_lanzamiento, codigo_inventario, ubicacion_estante) 
+VALUES (1, 'INV-LIN-001', 'Estante IT-A1');
+
+INSERT INTO publicacion (id_lanzamiento, codigo_inventario, ubicacion_estante) 
+VALUES (2, 'INV-SF-001', 'Estante CF-B2');
+
+INSERT INTO publicacion (id_lanzamiento, codigo_inventario, ubicacion_estante) 
+VALUES (2, 'INV-SF-002', 'Estante CF-B2'); -- Una segunda copia física del mismo libro
+
+INSERT INTO publicacion (id_lanzamiento, codigo_inventario, ubicacion_estante) 
+VALUES (3, 'INV-MYS-001', 'Estante MYS-C3');
+
+-- Inserción de Usuarios
+INSERT INTO usuario (nombre, apellidos, correo, telefono) 
+VALUES ('Roberto', 'Gómez', 'roberto.g@email.com', '4921112233');
+
+INSERT INTO usuario (nombre, apellidos, correo, telefono) 
+VALUES ('Laura', 'Martínez', 'laura.m@email.com', '4924445566');
+
+-- Inserción de un Préstamo (Al ejecutar esto, el Trigger 2 cambiará la publicación INV-LIN-001 a 'Prestado')
+INSERT INTO prestamo (id_usuario, id_publicacion, fecha_prestamo, fecha_limite) 
+VALUES (1, 1, '2026-02-25', '2026-03-11');
+        </code></pre>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+</body>
+</html>
