@@ -7,7 +7,15 @@ const state = {
 
 const api = {
   async get(path) {
-    const r = await fetch(path);
+    const sep = path.includes("?") ? "&" : "?";
+    const url = `${path}${sep}_t=${Date.now()}`;
+    const r = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache"
+      }
+    });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.detail || j.message || "Error");
     return j;
@@ -19,7 +27,10 @@ const api = {
       body: JSON.stringify(body || {})
     });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.detail || j.message || "Error");
+    if (!r.ok) {
+      const detail = [j.message, j.detail].filter(Boolean).join(" | ");
+      throw new Error(detail || "Error");
+    }
     return j;
   }
 };
@@ -84,7 +95,14 @@ function h(tag, attrs = {}, children = []) {
     }
     else el.setAttribute(k, v);
   });
-  children.forEach((c) => el.appendChild(typeof c === "string" ? document.createTextNode(c) : c));
+  children.forEach((c) => {
+    if (c === null || c === undefined) return;
+    if (c instanceof Node) {
+      el.appendChild(c);
+      return;
+    }
+    el.appendChild(document.createTextNode(String(c)));
+  });
   return el;
 }
 
@@ -96,6 +114,14 @@ function table(headers, rows) {
 
 function field(label, name, value = "", full = false) {
   const input = h("input", { class: "input", name, value: String(value ?? "") });
+  return h("div", { class: `field ${full ? "full" : ""}` }, [
+    h("div", { class: "label" }, [label]),
+    input
+  ]);
+}
+
+function dateField(label, name, value = "", full = false) {
+  const input = h("input", { type: "date", class: "input", name, value: String(value ?? "") });
   return h("div", { class: `field ${full ? "full" : ""}` }, [
     h("div", { class: "label" }, [label]),
     input
@@ -120,6 +146,27 @@ function selectField(label, name, options, selected) {
     sel.appendChild(opt);
   });
   return h("div", { class: "field" }, [h("div", { class: "label" }, [label]), sel]);
+}
+
+function staticSelectField(label, name, options, selected) {
+  const sel = h("select", { class: "input", name }, []);
+  (options || []).forEach((o) => {
+    const opt = document.createElement("option");
+    opt.value = o.value;
+    opt.textContent = o.label;
+    if (String(selected ?? "") === String(o.value)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  return h("div", { class: "field" }, [h("div", { class: "label" }, [label]), sel]);
+}
+
+async function refreshCurrentView(resetSearch = false) {
+  if (resetSearch) {
+    state.q = "";
+    const search = $("#search");
+    if (search) search.value = "";
+  }
+  await render();
 }
 
 // =========================
@@ -494,6 +541,13 @@ async function delCategoria(id) {
 // =========================
 async function renderLanzamientos() {
   const { data } = await api.get(`/api/lanzamientos?libro_id=0`);
+  if (!data.length) {
+    $("#content").innerHTML = "";
+    $("#content").appendChild(
+      h("div", { class: "muted" }, ["No hay lanzamientos registrados todavía."])
+    );
+    return;
+  }
   const rows = data.map((x) => ([
     String(x.id_lanzamiento),
     x.libro_titulo,
@@ -514,22 +568,33 @@ async function renderLanzamientos() {
 async function newLanzamiento() {
   const libros = await api.get("/api/select/libros");
 
+  if (!libros.data.length) {
+    alert("Primero debes crear al menos un libro para registrar un lanzamiento.");
+    return;
+  }
+
   const form = h("div", { class: "form" }, [
     selectField("Libro",            "id_libro",           libros.data),
     field("ISBN",                   "isbn",               ""),
-    field("Idioma",                 "idioma",             "Español"),
+    staticSelectField("Idioma", "idioma", [
+      { value: "Español", label: "Español" },
+      { value: "Inglés", label: "Inglés" },
+      { value: "Francés", label: "Francés" },
+      { value: "Alemán", label: "Alemán" }
+    ], "Español"),
     field("Número de edición",      "numero_edicion",     ""),
-    field("Fecha lanzamiento",      "fecha_lanzamiento",  "")
+    dateField("Fecha lanzamiento",  "fecha_lanzamiento",  "")
   ]);
 
   const save = async () => {
     const payload = readForm(form);
     payload.id_libro       = Number(payload.id_libro);
+    payload.isbn = payload.isbn ? payload.isbn.trim() : null;
     payload.numero_edicion = payload.numero_edicion ? Number(payload.numero_edicion) : null;
     await api.send("/api/lanzamientos", "POST", payload);
     toast("Lanzamiento creado");
     closeModal();
-    render();
+    await refreshCurrentView(true);
   };
 
   openModal("Nuevo lanzamiento", "Catálogo", form, [
@@ -544,19 +609,25 @@ async function editLanzamiento(x) {
   const form = h("div", { class: "form" }, [
     selectField("Libro",        "id_libro",          libros.data, x.id_libro),
     field("ISBN",               "isbn",              x.isbn ?? ""),
-    field("Idioma",             "idioma",            x.idioma ?? "Español"),
+    staticSelectField("Idioma", "idioma", [
+      { value: "Español", label: "Español" },
+      { value: "Inglés", label: "Inglés" },
+      { value: "Francés", label: "Francés" },
+      { value: "Alemán", label: "Alemán" }
+    ], x.idioma ?? "Español"),
     field("Número de edición",  "numero_edicion",    x.numero_edicion ?? ""),
-    field("Fecha lanzamiento",  "fecha_lanzamiento", x.fecha_lanzamiento ?? "")
+    dateField("Fecha lanzamiento",  "fecha_lanzamiento", x.fecha_lanzamiento ?? "")
   ]);
 
   const save = async () => {
     const payload = readForm(form);
     payload.id_libro       = Number(payload.id_libro);
+    payload.isbn = payload.isbn ? payload.isbn.trim() : null;
     payload.numero_edicion = payload.numero_edicion ? Number(payload.numero_edicion) : null;
     await api.send(`/api/lanzamientos/${x.id_lanzamiento}`, "PUT", payload);
     toast("Lanzamiento actualizado");
     closeModal();
-    render();
+    await refreshCurrentView();
   };
 
   openModal("Editar lanzamiento", `ID ${x.id_lanzamiento}`, form, [
@@ -569,7 +640,7 @@ async function delLanzamiento(id) {
   if (!confirm("¿Eliminar lanzamiento? Se eliminarán sus publicaciones.")) return;
   await api.send(`/api/lanzamientos/${id}`, "DELETE");
   toast("Lanzamiento eliminado");
-  render();
+  await refreshCurrentView();
 }
 
 // =========================
@@ -579,6 +650,13 @@ async function renderPublicaciones() {
   const { data } = await api.get(
     `/api/publicaciones?q=${encodeURIComponent(state.q)}`
   );
+  if (!data.length) {
+    $("#content").innerHTML = "";
+    $("#content").appendChild(
+      h("div", { class: "muted" }, ["No hay publicaciones registradas para este filtro."])
+    );
+    return;
+  }
   const rows = data.map((x) => {
     const est = x.estado || "—";
     const badge =
@@ -609,11 +687,20 @@ async function renderPublicaciones() {
 async function newPublicacion() {
   const lanzamientos = await api.get("/api/select/lanzamientos?libro_id=0");
 
+  if (!lanzamientos.data.length) {
+    alert("Primero debes crear al menos un lanzamiento para registrar una publicación.");
+    return;
+  }
+
   const form = h("div", { class: "form" }, [
     selectField("Lanzamiento",     "id_lanzamiento",    lanzamientos.data),
     field("Código inventario",     "codigo_inventario", ""),
     field("Ubicación (estante)",   "ubicacion_estante", ""),
-    field("Estado",                "estado",            "Disponible")
+    staticSelectField("Estado", "estado", [
+      { value: "Disponible", label: "Disponible" },
+      { value: "Prestado", label: "Prestado" },
+      { value: "Mantenimiento", label: "Mantenimiento" }
+    ], "Disponible")
   ]);
 
   const save = async () => {
@@ -622,7 +709,7 @@ async function newPublicacion() {
     await api.send("/api/publicaciones", "POST", payload);
     toast("Publicación creada");
     closeModal();
-    render();
+    await refreshCurrentView(true);
   };
 
   openModal("Nueva publicación", "Catálogo", form, [
@@ -634,14 +721,18 @@ async function newPublicacion() {
 async function editPublicacion(x) {
   const form = h("div", { class: "form" }, [
     field("Ubicación (estante)", "ubicacion_estante", x.ubicacion_estante || ""),
-    field("Estado",              "estado",            x.estado || "Disponible")
+    staticSelectField("Estado", "estado", [
+      { value: "Disponible", label: "Disponible" },
+      { value: "Prestado", label: "Prestado" },
+      { value: "Mantenimiento", label: "Mantenimiento" }
+    ], x.estado || "Disponible")
   ]);
 
   const save = async () => {
     await api.send(`/api/publicaciones/${x.id_publicacion}`, "PUT", readForm(form));
     toast("Publicación actualizada");
     closeModal();
-    render();
+    await refreshCurrentView();
   };
 
   openModal("Editar publicación", `ID ${x.id_publicacion} — ${x.codigo_inventario}`, form, [
@@ -654,7 +745,7 @@ async function delPublicacion(id) {
   if (!confirm("¿Eliminar publicación?")) return;
   await api.send(`/api/publicaciones/${id}`, "DELETE");
   toast("Publicación eliminada");
-  render();
+  await refreshCurrentView();
 }
 
 // =========================
@@ -687,7 +778,10 @@ async function newUsuario() {
     field("Apellidos", "apellidos", ""),
     field("Correo",    "correo",    ""),
     field("Teléfono",  "telefono",  ""),
-    field("Estado (Activo/Inactivo)", "estado", "Activo")
+    staticSelectField("Estado", "estado", [
+      { value: "Activo", label: "Activo" },
+      { value: "Inactivo", label: "Inactivo" }
+    ], "Activo")
   ]);
 
   const save = async () => {
@@ -709,7 +803,10 @@ async function editUsuario(x) {
     field("Apellidos", "apellidos", x.apellidos),
     field("Correo",    "correo",    x.correo),
     field("Teléfono",  "telefono",  x.telefono || ""),
-    field("Estado",    "estado",    x.estado || "Activo")
+    staticSelectField("Estado", "estado", [
+      { value: "Activo", label: "Activo" },
+      { value: "Inactivo", label: "Inactivo" }
+    ], x.estado || "Activo")
   ]);
 
   const save = async () => {
@@ -784,7 +881,7 @@ async function newPrestamo() {
   const form = h("div", { class: "form" }, [
     selectField("Usuario",      "id_usuario",     usuarios.data),
     selectField("Publicación",  "id_publicacion", publicaciones.data),
-    field("Fecha límite (YYYY-MM-DD)", "fecha_limite", fmt(limit))
+    dateField("Fecha límite", "fecha_limite", fmt(limit))
   ]);
 
   const save = async () => {

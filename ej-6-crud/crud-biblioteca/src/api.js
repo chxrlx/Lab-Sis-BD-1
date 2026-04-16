@@ -279,6 +279,10 @@ function apiRouter() {
     const { id_libro, isbn, idioma, fecha_lanzamiento, numero_edicion } = req.body || {};
     if (!id_libro) return res.status(400).json({ ok: false, message: "id_libro requerido." });
 
+    const cleanIsbn = String(isbn ?? "").trim() || null;
+    const cleanIdioma = String(idioma ?? "").trim() || "Español";
+    const cleanFecha = String(fecha_lanzamiento ?? "").trim() || null;
+
     const info = db
       .prepare(
         `INSERT INTO lanzamiento_publicacion (id_libro, isbn, idioma, fecha_lanzamiento, numero_edicion)
@@ -286,9 +290,9 @@ function apiRouter() {
       )
       .run(
         Number(id_libro),
-        isbn ?? null,
-        idioma || "Español",
-        fecha_lanzamiento ?? null,
+        cleanIsbn,
+        cleanIdioma,
+        cleanFecha,
         numero_edicion ? Number(numero_edicion) : null
       );
     res.status(201).json({ ok: true, id: info.lastInsertRowid });
@@ -299,6 +303,10 @@ function apiRouter() {
     const { id_libro, isbn, idioma, fecha_lanzamiento, numero_edicion } = req.body || {};
     if (!id) return res.status(400).json({ ok: false, message: "ID inválido." });
 
+    const cleanIsbn = String(isbn ?? "").trim() || null;
+    const cleanIdioma = String(idioma ?? "").trim() || "Español";
+    const cleanFecha = String(fecha_lanzamiento ?? "").trim() || null;
+
     const info = db
       .prepare(
         `UPDATE lanzamiento_publicacion
@@ -307,9 +315,9 @@ function apiRouter() {
       )
       .run(
         Number(id_libro),
-        isbn ?? null,
-        idioma || "Español",
-        fecha_lanzamiento ?? null,
+        cleanIsbn,
+        cleanIdioma,
+        cleanFecha,
         numero_edicion ? Number(numero_edicion) : null,
         id
       );

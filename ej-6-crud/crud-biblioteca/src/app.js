@@ -6,6 +6,7 @@ const { notFound, errorHandler } = require("./errors");
 
 function createApp() {
   const app = express();
+  app.set("etag", false);
 
   app.use(morgan("dev"));
   app.use(express.json({ limit: "1mb" }));
