@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Escaner QR y Barras</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>Escaner QR y Codigo de Barras</h1>
+        <p>Usa la camara del celular para escanear y guardar en SQLite.</p>
+      </header>
+
+      <section class="card">
+        <div class="actions">
+          <button id="startBtn" type="button">Iniciar escaner</button>
+          <button id="stopBtn" type="button" disabled>Detener</button>
+        </div>
+
+        <div class="reader-wrapper" id="readerWrapper" data-guide="qr">
+          <div id="reader"></div>
+          <div class="focus-guide" id="focusGuide" aria-hidden="true"></div>
+        </div>
+
+        <div class="manual">
+          <label for="manualInput">Entrada manual (fallback)</label>
+          <div class="manual-row">
+            <input id="manualInput" type="text" placeholder="Ingresa un codigo" />
+            <button id="saveManualBtn" type="button">Guardar</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ultimos escaneos</h2>
+        <button id="refreshBtn" type="button">Actualizar</button>
+        <ul id="scanList" class="scan-list"></ul>
+      </section>
+
+      <section class="card status" id="status"></section>
+    </main>
+  </body>
+</html>
